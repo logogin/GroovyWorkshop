@@ -1,0 +1,100 @@
+import org.gradle.BuildResult;
+import org.gradle.api.tasks.TaskExecutionException;
+import org.joda.time.DateTime
+
+apply plugin: 'groovy'
+apply plugin: 'java'
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'joda-time:joda-time:2.3'
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+def addSpringModule(name) {
+    "org.springframework:spring-$name:4.0.2.RELEASE"
+}
+
+dependencies {
+    //IDE project support
+    compile 'joda-time:joda-time:2.3'
+    compile('org.springframework:spring-context:4.0.2.RELEASE') {
+        exclude module: 'spring-beans'
+    }
+    compile(addSpringModule('core'))
+}
+
+task('testTask') << {
+    println new DateTime()
+}
+
+ext {extProp = "run" }
+
+task printProps {
+    doFirst {
+        println "Hello $testName"
+        println extProp
+    }
+    doLast {
+        println "Bye $testName"
+    }
+}
+
+task timeTask {
+    onlyIf {
+        extProp == "run"
+    }
+    doLast {
+        println "Here"
+    }
+}
+
+task send(type: MyTask) {
+    to = 'testTo'
+    content = 'testContent'
+}
+
+task A << {
+    println 'A'
+}
+task B << {
+    println 'B'
+}
+task C << {
+    println 'C'
+}
+task X << {
+    println 'X'
+}
+A.dependsOn B, X
+B.dependsOn C
+C.dependsOn X
+
+gradle.addBuildListener(new BuildAdapter() {
+    @Override
+    void buildFinished(BuildResult result) {
+        if (result.failure) {
+            getProject().send.execute()
+        }
+    }
+})
+
+task failTask << {
+    throw new RuntimeException("failed build")
+}
+
+test {
+    testLogging.showStandardStreams = true
+}
+
+task runIntegrationTest(type: JavaExec) {
+    main = 'MainTest'
+    classpath sourceSets.test.runtimeClasspath
+}
